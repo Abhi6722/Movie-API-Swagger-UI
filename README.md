@@ -1,6 +1,6 @@
 # Simple Movie API with Swagger UI
 
-This project is a simple movie API built with Express.js that allows you to manage movies and genres. It includes Swagger UI documentation to help you understand and interact with the API easily.
+This project is a simple movie API built with Express.js that allows you to manage movies and genres. It includes Swagger UI documentation to help you understand and interact with the API easily. [View Live API](https://movie-api-swagger-ui.onrender.com/api-docs)
 
 ## Table of Contents
 
@@ -54,8 +54,8 @@ Before you begin, ensure you have met the following requirements:
 
 4. Configure environment variables (create a .env file and write the following) in a `.env` file.
    ```
-    SERVER_URL=http://localhost:8080/api
-    PORT=8080
+    SERVER_URL=http://localhost:3000/api
+    PORT=3000
     MONGO_URL=mongodb://localhost/my-movie-api
    ```
 
@@ -65,7 +65,7 @@ Before you begin, ensure you have met the following requirements:
    npm start
    ```
 
-The server will start, and you can access the API at `http://localhost:8080/api-docs/`.
+The server will start, and you can access the API at `http://localhost:3000/api-docs/`.
 
 ## Usage
 
@@ -82,7 +82,7 @@ The API provides the following endpoints:
 ![swaggerui](https://github.com/Abhi6722/Movie-API-Swagger-UI/assets/62201123/e3bcc62a-7b47-48df-a4c5-6080c0ff3f26)
 
 
-For detailed information about each endpoint and request/response examples, refer to the [Swagger UI documentation](http://localhost:8080/api-docs).
+For detailed information about each endpoint and request/response examples, refer to the [Swagger UI documentation](https://movie-api-swagger-ui.onrender.com/api-docs).
 
 ## Swagger UI
 
@@ -97,7 +97,7 @@ Swagger UI is integrated into this project, allowing you to explore and test the
 2. Open a web browser and go to:
 
    ```
-   http://localhost:8080/api-docs
+   http://localhost:3000/api-docs
    ```
 
 3. Use Swagger UI to view, test, and interact with the API.
