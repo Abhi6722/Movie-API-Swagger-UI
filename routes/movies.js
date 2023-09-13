@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Movie = require('../models/Movie');
 const Genre = require('../models/Genre');
+const Redis = require('async-redis');
+const redisClient = Redis.createClient();
 
 /**
  * @swagger
@@ -71,9 +73,19 @@ const Genre = require('../models/Genre');
  */
 // Get all movies
 router.get('/movies', async (req, res) => {
+  const cacheKey = 'movies:all';
+
   try {
-    const movies = await Movie.find().populate('genres');
-    res.json(movies);
+    const cachedData = await redisClient.get(cacheKey);
+
+    if (cachedData) {
+      const movies = JSON.parse(cachedData);
+      res.json(movies);
+    } else {
+      const movies = await Movie.find();
+      await redisClient.setex(cacheKey, 3600, JSON.stringify(movies)); // Cache for 1 hour
+      res.json(movies);
+    }
   } catch (err) {
     res.status(500).json({ error: 'Internal Server Error' });
   }
@@ -104,12 +116,29 @@ router.get('/movies', async (req, res) => {
  */
 router.get('/movies/:id', async (req, res) => {
   const { id } = req.params;
+  const cacheKey = `movie:${id}`; // Create a unique cache key for each movie
+
   try {
-    const movie = await Movie.findById(id).populate('genres');
-    if (!movie) {
-      return res.status(404).json({ error: 'Movie not found' });
+    // Check if the data is cached
+    const cachedData = await redisClient.get(cacheKey);
+
+    if (cachedData) {
+      // If cached data exists, send it as the response
+      const movie = JSON.parse(cachedData);
+      res.json(movie);
+    } else {
+      // If no cached data, query the MongoDB database
+      const movie = await Movie.findById(id).populate('genres');
+
+      if (!movie) {
+        return res.status(404).json({ error: 'Movie not found' });
+      }
+
+      // Store the result in the cache for future use
+      await redisClient.setex(cacheKey, 3600, JSON.stringify(movie)); // Cache for 1 hour
+
+      res.json(movie);
     }
-    res.json(movie);
   } catch (err) {
     res.status(500).json({ error: 'Internal Server Error' });
   }
@@ -154,6 +183,9 @@ router.post('/movies', async (req, res) => {
       { _id: { $in: genres } },
       { $push: { movies: movie._id } }
     );
+
+    // Clear the movies:all cache because a new movie has been added
+    await redisClient.del('movies:all');
 
     res.status(201).json({ message: 'Movie Created', movie });
   } catch (err) {
@@ -208,6 +240,7 @@ router.put('/movies/:id', async (req, res) => {
       },
       { new: true }
     );
+
     if (!movie) {
       return res.status(404).json({ error: 'Movie not found' });
     }
@@ -217,6 +250,9 @@ router.put('/movies/:id', async (req, res) => {
       { _id: { $in: genres } },
       { $push: { movies: movie._id } }
     );
+
+    // Clear the movies:all cache because a movie has been updated
+    await redisClient.del('movies:all');
 
     res.json(movie);
   } catch (err) {
@@ -248,9 +284,14 @@ router.delete('/movies/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const movie = await Movie.findByIdAndDelete(id);
+
     if (!movie) {
       return res.status(404).json({ error: 'Movie not found' });
     }
+
+    // Clear the movies:all cache because a movie has been deleted
+    await redisClient.del('movies:all');
+
     res.json({ message: 'Movie deleted' });
   } catch (err) {
     res.status(500).json({ error: 'Internal Server Error' });

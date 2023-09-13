@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Genre = require('../models/Genre');
+const Redis = require('async-redis');
+const redisClient = Redis.createClient();
 
 /**
  * @swagger
@@ -47,9 +49,25 @@ const Genre = require('../models/Genre');
  */
 // Get all genres
 router.get('/genres', async (req, res) => {
+  const cacheKey = 'genres:all';
+
   try {
-    const genres = await Genre.find();
-    res.json(genres);
+    // Check if the data is cached
+    const cachedData = await redisClient.get(cacheKey);
+
+    if (cachedData) {
+      // If cached data exists, send it as the response
+      const genres = JSON.parse(cachedData);
+      res.json(genres);
+    } else {
+      // If no cached data, query the database
+      const genres = await Genre.find();
+
+      // Store the result in the cache for future use with a 1-hour expiration time
+      await redisClient.setex(cacheKey, 3600, JSON.stringify(genres));
+
+      res.json(genres);
+    }
   } catch (err) {
     res.status(500).json({ error: 'Internal Server Error' });
   }
@@ -74,9 +92,25 @@ router.get('/genres', async (req, res) => {
  */
 // Get all genres with movies
 router.get('/genres-movies', async (req, res) => {
+  const cacheKey = 'genres:all-with-movies';
+
   try {
-    const genres = await Genre.find().populate('movies');
-    res.json(genres);
+    // Check if the data is cached
+    const cachedData = await redisClient.get(cacheKey);
+
+    if (cachedData) {
+      // If cached data exists, send it as the response
+      const genres = JSON.parse(cachedData);
+      res.json(genres);
+    } else {
+      // If no cached data, query the database and populate movies
+      const genres = await Genre.find().populate('movies');
+
+      // Store the result in the cache for future use with a 1-hour expiration time
+      await redisClient.setex(cacheKey, 3600, JSON.stringify(genres));
+
+      res.json(genres);
+    }
   } catch (err) {
     res.status(500).json({ error: 'Internal Server Error' });
   }
@@ -109,12 +143,32 @@ router.get('/genres-movies', async (req, res) => {
  */
 router.get('/genres/:genreId/movies', async (req, res) => {
   const { genreId } = req.params;
+  const cacheKey = `genre:${genreId}:movies`;
+
   try {
-    const genre = await Genre.findById(genreId).populate('movies');
-    if (!genre) {
-      return res.status(404).json({ error: 'Genre not found' });
+    // Check if the data is cached
+    const cachedData = await redisClient.get(cacheKey);
+
+    if (cachedData) {
+      // If cached data exists, send it as the response
+      const movies = JSON.parse(cachedData);
+      res.json(movies);
+    } else {
+      // If no cached data, query the database and populate movies
+      const genre = await Genre.findById(genreId).populate('movies');
+
+      if (!genre) {
+        return res.status(404).json({ error: 'Genre not found' });
+      }
+
+      // Extract the movies from the genre object
+      const movies = genre.movies;
+
+      // Store the result in the cache for future use with a 1-hour expiration time
+      await redisClient.setex(cacheKey, 3600, JSON.stringify(movies));
+
+      res.json(movies);
     }
-    res.json(genre.movies);
   } catch (err) {
     res.status(500).json({ error: 'Internal Server Error' });
   }
@@ -148,6 +202,11 @@ router.post('/genres', async (req, res) => {
     const genre = await Genre.create({
       name,
     });
+
+    // Cache the newly created genre with a cache key
+    const cacheKey = `genre:${genre._id}`;
+    await redisClient.setex(cacheKey, 3600, JSON.stringify(genre)); // Cache for 1 hour
+
     res.status(201).json({ message: 'Genre Created', genre });
   } catch (err) {
     res.status(400).json({ error: 'Invalid data' });
@@ -177,10 +236,16 @@ router.post('/genres', async (req, res) => {
 router.delete('/genres/:genreId', async (req, res) => {
   const { genreId } = req.params;
   try {
+    // Attempt to delete the genre from the database
     const genre = await Genre.findByIdAndDelete(genreId);
     if (!genre) {
       return res.status(404).json({ error: 'Genre not found' });
     }
+
+    // If the genre was successfully deleted from the database, also remove it from the cache
+    const cacheKey = `genre:${genreId}`;
+    await redisClient.del(cacheKey);
+
     res.json({ message: 'Genre deleted' });
   } catch (err) {
     res.status(500).json({ error: 'Internal Server Error' });
