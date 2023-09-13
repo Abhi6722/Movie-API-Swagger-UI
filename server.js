@@ -33,17 +33,15 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB configuration
-mongoose.connect(process.env.MONGO_URL, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
-
-const db = mongoose.connection;
-
-db.on('error', console.error.bind(console, 'MongoDB connection error:'));
-db.once('open', () => {
-  console.log('Connected to MongoDB');
-});
+const connectDB = async () => {
+  try {
+    const conn = await mongoose.connect(process.env.MONGO_URI);
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.log(error);
+    process.exit(1);
+  }
+}
 
 // Use route files
 app.use('/api/', moviesRouter);
@@ -52,6 +50,9 @@ app.use("/api-docs", swaggerUI.serve, swaggerUI.setup(specs));
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+//Connect to the database before listening
+connectDB().then(() => {
+    app.listen(PORT, () => {
+        console.log("listening for requests");
+    })
+})
