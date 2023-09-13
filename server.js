@@ -53,6 +53,6 @@ const PORT = process.env.PORT || 3000;
 //Connect to the database before listening
 connectDB().then(() => {
     app.listen(PORT, () => {
-        console.log("listening for requests");
+        console.log(`Server Running on port ${PORT}`);
     })
 })
