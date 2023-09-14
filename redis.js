@@ -1,6 +1,8 @@
 const Redis = require('async-redis');
+require('dotenv').config();
+
 const redisClient = Redis.createClient({
-  url: "rediss://red-ck0vnfkojvrs73a6rcl0:IPOnaaiVqXjL4SMACRbTuuEJQbZhYi8U@singapore-redis.render.com:6379",
+  url: process.env.REDIS_URL,
   socket: {
     tls: false,
     rejectUnauthorized: false,
