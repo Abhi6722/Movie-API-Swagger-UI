@@ -1,10 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Genre = require('../models/Genre');
-const Redis = require('async-redis');
-const redisClient = Redis.createClient({
-  URL: process.env.REDIS_URL,
-});
+const redisClient = require('../redis');
 
 /**
  * @swagger
